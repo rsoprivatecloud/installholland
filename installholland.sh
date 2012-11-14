@@ -51,7 +51,7 @@ fi
 returncheck ()
 {
 if [ $? -ne 0 ]; then
-        printext "$*"
+        echo "$*"
 	exit 1
 else
         printext "Success!"
