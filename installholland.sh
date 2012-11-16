@@ -85,7 +85,7 @@ printext "Installing Holland."
 
 OS_VERSION=`lsb_release -i | awk -F ':' '{print $2}' | cut -f2`"_"`lsb_release -r | awk -F ':' '{print $2}' | cut -f2`
 sudo wget -q http://download.opensuse.org/repositories/home:/holland-backup/x$OS_VERSION/Release.key -O - | sudo apt-key add - >/dev/null
-sudo echo "deb http://download.opensuse.org/repositories/home:/holland-backup/x$OS_VERSION/ ./" > /etc/apt/sources.list.d/holland.list >/dev/null 
+sudo echo "deb http://download.opensuse.org/repositories/home:/holland-backup/x$OS_VERSION/ ./" > /etc/apt/sources.list.d/holland.list  
 sudo apt-get update > /dev/null
 sudo apt-get install -y holland holland-common holland-mysqldump > /dev/null
 
