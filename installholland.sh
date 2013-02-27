@@ -107,6 +107,33 @@ OSCONFIG="/etc/holland/backupsets/OpenStack.conf"
 SOCKET=$(sudo grep -A 5 "\[client\]" /etc/mysql/my.cnf | grep socket | awk -F '=' '{print $2}' | cut -d ' ' -f2 | sed 's/\//\\\//g')
 PORT=$(sudo grep -A 5 "\[client\]" /etc/mysql/my.cnf | grep port | awk -F '=' '{print $2}' | cut -d ' ' -f2 | sed 's/\//\\\//g')
 
+
+# Create the commvault file for mbu
+cat > /usr/sbin/holland_cvmysqlsv << EOF
+#!/usr/bin/python
+
+# EASY-INSTALL-ENTRY-SCRIPT: 'holland-commvault==1.0dev','console_scripts','holland_cvmysqlsv'
+
+__requires__ = 'holland-commvault==1.0dev'
+
+import sys
+
+from pkg_resources import load_entry_point
+
+
+
+if __name__ == '__main__':
+
+    sys.exit(
+
+        load_entry_point('holland-commvault==1.0dev', 'console_scripts', 'holland_cvmysqlsv')()
+
+    )
+EOF
+
+# Set permissions to 755
+chmod 755 /usr/sbin/holland_cvmysqlsv
+
 sudo sed -i "s/backups-to-keep = 1/backups-to-keep = 7/" $OSCONFIG
 sudo sed -i "s/# user = \"\" # no default/user = $BKUSER/" $OSCONFIG
 sudo sed -i "s/# password = \"\" # no default/password = $USERPASS/" $OSCONFIG
