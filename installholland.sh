@@ -109,7 +109,7 @@ PORT=$(sudo grep -A 5 "\[client\]" /etc/mysql/my.cnf | grep port | awk -F '=' '{
 
 
 # Create the commvault file for mbu
-cat > /usr/sbin/holland_cvmysqlsv << EOF
+sudo cat > /usr/sbin/holland_cvmysqlsv << EOF
 #!/usr/bin/python
 
 # EASY-INSTALL-ENTRY-SCRIPT: 'holland-commvault==1.0dev','console_scripts','holland_cvmysqlsv'
