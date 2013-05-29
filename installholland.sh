@@ -61,7 +61,7 @@ fi
 
 # Create the replication user in mysql
 printext "Creating the MySQL replication user."
-BKUSER="os_backup_user"
+BKUSER="rackspace_backup"
 USERPASS=$( tr -cd '[:alnum:]' < /dev/urandom | fold -w30 | head -n1)
 
 # If '$BKUSER' exists, drop and recreate with proper permissions and password
@@ -94,75 +94,123 @@ sudo which holland > /dev/null
 
 returncheck "Error:  Holland was not installed.  Investigate manually"
 
-# Remove the default config if it exists
+# Remove the default config if it exists...
 if [ -f /etc/holland/backupsets/default.conf ]; then
 	sudo rm /etc/holland/backupsets/default.conf
 fi
 
+
+# Create a new one in its place
+cat >>"/etc/holland/backupsets/default.conf" <<EOCFG
+## Default Backup-Set
+##
+## Backs up all MySQL databases in a one-file-per-database fashion using
+## lightweight in-line compression and engine auto-detection. This backup-set
+## is designed to provide reliable backups "out of the box", however it is
+## generally advisable to create additional custom backup-sets to suit
+## one's specific needs.
+##
+## For more inforamtion about backup-sets, please consult the online Holland
+## documentation. Fully-commented example backup-sets are also provided, by
+## default, in /etc/holland/backupsets/examples.
+
+[holland:backup]
+plugin = mysqldump
+backups-to-keep = 1
+auto-purge-failures = yes
+purge-policy = after-backup
+estimated-size-factor = 1.0
+
+# This section defines the configuration options specific to the backup
+# plugin. In other words, the name of this section should match the name
+# of the plugin defined above.
+[mysqldump]
+file-per-database = yes
+#lock-method = auto-detect
+#databases = "*"
+#exclude-databases = "foo", "bar"
+#tables = "*"
+#exclude-tables = "foo.bar"
+#stop-slave = no
+#bin-log-position = no
+
+# The following section is for compression. The default, unless the
+# mysqldump provider has been modified, is to use inline fast gzip
+# compression (which is identical to the commented section below).
+#[compression]
+#method = gzip
+#inline = yes
+#level = 1
+
+#[mysql:client]
+#defaults-extra-file = /root/.my.cnf
+username=${$BKUSER}
+password=${USERPASS}
+EOCFG
 # Create an OpenStack mysqldump config
 printext "Creating OpenStack MySQL dump configuration for Holland."
-sudo holland -q  mk-config --name=OpenStack mysqldump >/dev/null 2>&1
+#sudo holland -q  mk-config --name=OpenStack mysqldump >/dev/null 2>&1
 
-OSCONFIG="/etc/holland/backupsets/OpenStack.conf"
+OSCONFIG="/etc/holland/backupsets/default.conf"
 SOCKET=$(sudo grep -A 5 "\[client\]" /etc/mysql/my.cnf | grep socket | awk -F '=' '{print $2}' | cut -d ' ' -f2 | sed 's/\//\\\//g')
 PORT=$(sudo grep -A 5 "\[client\]" /etc/mysql/my.cnf | grep port | awk -F '=' '{print $2}' | cut -d ' ' -f2 | sed 's/\//\\\//g')
 
 
 # Create the commvault file for mbu
-sudo cat > /usr/sbin/holland_cvmysqlsv << EOF
+#sudo cat > /usr/sbin/holland_cvmysqlsv << EOF
 #!/usr/bin/python
 
 # EASY-INSTALL-ENTRY-SCRIPT: 'holland-commvault==1.0dev','console_scripts','holland_cvmysqlsv'
 
-__requires__ = 'holland-commvault==1.0dev'
+#__requires__ = 'holland-commvault==1.0dev'
 
-import sys
+#import sys
 
-from pkg_resources import load_entry_point
+#from pkg_resources import load_entry_point
 
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
 
-    sys.exit(
+#    sys.exit(
 
-        load_entry_point('holland-commvault==1.0dev', 'console_scripts', 'holland_cvmysqlsv')()
+#        load_entry_point('holland-commvault==1.0dev', 'console_scripts', 'holland_cvmysqlsv')()
 
-    )
-EOF
+#    )
+#EOF
 
 # Set permissions to 755
-chmod 755 /usr/sbin/holland_cvmysqlsv
+#chmod 755 /usr/sbin/holland_cvmysqlsv
 
-sudo sed -i "s/backups-to-keep = 1/backups-to-keep = 7/" $OSCONFIG
-sudo sed -i "s/# user = \"\" # no default/user = $BKUSER/" $OSCONFIG
-sudo sed -i "s/# password = \"\" # no default/password = $USERPASS/" $OSCONFIG
-sudo sed -i "s/# socket = \"\" # no default/socket = $SOCKET/" $OSCONFIG
-sudo sed -i "s/# host = \"\" # no default/host = localhost/" $OSCONFIG
-sudo sed -i "s/# port = \"\" # no default/port = $PORT/" $OSCONFIG
-sudo sed -i "s/exclude-databases = ,/#exclude-databases = ,/" $OSCONFIG
-sudo sed -i "s/exclude-tables = ,/#exclude-tables = ,/" $OSCONFIG
-sudo sed -i "s/exclude-engines = ,/#exclude-engines = ,/" $OSCONFIG
-sudo sed -i "s/additional-options = ,/#additional-options = ,/" $OSCONFIG
+#sudo sed -i "s/backups-to-keep = 1/backups-to-keep = 7/" $OSCONFIG
+#sudo sed -i "s/# user = \"\" # no default/user = $BKUSER/" $OSCONFIG
+#sudo sed -i "s/# password = \"\" # no default/password = $USERPASS/" $OSCONFIG
+#sudo sed -i "s/# socket = \"\" # no default/socket = $SOCKET/" $OSCONFIG
+#sudo sed -i "s/# host = \"\" # no default/host = localhost/" $OSCONFIG
+#sudo sed -i "s/# port = \"\" # no default/port = $PORT/" $OSCONFIG
+#sudo sed -i "s/exclude-databases = ,/#exclude-databases = ,/" $OSCONFIG
+#sudo sed -i "s/exclude-tables = ,/#exclude-tables = ,/" $OSCONFIG
+#sudo sed -i "s/exclude-engines = ,/#exclude-engines = ,/" $OSCONFIG
+#sudo sed -i "s/additional-options = ,/#additional-options = ,/" $OSCONFIG
 
 printext "Success!"
 
 # Create cron job to run Holland 1x per day
-printext "Creating daily cron job for Holland."
-sudo echo '#!/bin/bash
-holland backup OpenStack
-' > /etc/cron.daily/holland
-
-if [ -f /etc/cron.daily/holland ]; then
-	sudo chmod +x /etc/cron.daily/holland
-	printext "Success!"
-else
-	echo "Failed to create cron job.  Investigate manually."
-fi
+#printext "Creating daily cron job for Holland."
+#sudo echo '#!/bin/bash
+#holland bk
+#' > /etc/cron.daily/holland
+#
+#if [ -f /etc/cron.daily/holland ]; then
+#	sudo chmod +x /etc/cron.daily/holland
+#	printext "Success!"
+#else
+#	echo "Failed to create cron job.  Investigate manually."
+#fi
 
 
 printext "Performing dry run to verify installation."
 # Perform dry run of the backup
-sudo holland -q bk -n OpenStack 
+sudo holland -q bk -n 
 
 returncheck "Dry Run did not complete successfully. Investigate manually."
