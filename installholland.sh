@@ -142,9 +142,9 @@ file-per-database = yes
 #inline = yes
 #level = 1
 
-#[mysql:client]
+[mysql:client]
 #defaults-extra-file = /root/.my.cnf
-username=${$BKUSER}
+user=${BKUSER}
 password=${USERPASS}
 EOCFG
 # Create an OpenStack mysqldump config
